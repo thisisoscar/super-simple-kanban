@@ -138,7 +138,7 @@ while running:
                         selected = task
                         task.background_colour = (50,50,200)
                         break
-        
+                    
         if event.type == pg.MOUSEBUTTONUP and selected != None:
             section_distances = get_section_distances()
             index = 0
@@ -152,6 +152,7 @@ while running:
             selected.category.tasks.remove(selected)
             category.tasks.append(selected)
             selected.category = category
+            selected = None
     
     title_text_surfaces = draw_section_titles()
     draw_vertical_borders()
@@ -159,6 +160,21 @@ while running:
     for category in kanban_data:
         for task in kanban_data[category]:
             task.draw()
+    
+    if pg.mouse.get_pos()[0] >= screen_width-50:
+        image = pg.image.load('images/add.png').convert_alpha()
+        image = pg.transform.scale(image, (50,50))
+        image_rect = image.get_rect(midright=(screen_width,screen_height/2))
+        screen.blit(image, image_rect)
+
+        if pg.mouse.get_pressed()[0] and list(kanban_data)[-1].text != '':
+            kanban_data[Category(text='', index=len(kanban_data)+1)] = []
+    
+    if pg.mouse.get_pos()[1] >= screen_height-50:
+        image = pg.image.load('images/add.png').convert_alpha()
+        image = pg.transform.scale(image, (50,50))
+        image_rect = image.get_rect(midbottom=(screen_width/2,screen_height))
+        screen.blit(image, image_rect)
 
     clock.tick(60)
     pg.display.flip()
