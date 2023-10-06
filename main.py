@@ -5,22 +5,86 @@ screen = pg.display.set_mode((0,0), pg.FULLSCREEN)
 screen_width = screen.get_width()
 screen_height = screen.get_height()
 clock = pg.time.Clock()
-title_font = pg.font.SysFont('arial', 40) # nunito kokonor notosansinscriptionalparthian notoserifnyiakengpuachuehmong
+title_font = pg.font.SysFont('chalkduster', 40)
+text_font = pg.font.SysFont('chalkduster', 20)
 big_border_width = 3
+small_border_width = 1
+box_margin = 15
+box_padding = 15
+
+class Task:
+    def __init__(self, text, category):
+        self.text = text
+        self.category = category
+        self.height = self.get_height()
+    
+    def draw(self):
+        text_surface = text_font.render(self.text, True, (255,255,255), wraplength=int(get_section_distances()/1.2))
+        
+        height = text_surface.get_height() + (box_margin * 2)
+        width = get_section_distances() // 1.2
+        
+        surface = pg.Surface((width, height))
+        surface.fill((100,100,100))
+        surface.blit(text_surface, (box_margin,box_margin))
+        
+        x_pos = self.category.index * get_section_distances()
+        x_pos -= get_section_distances() // 2
+
+        y_pos = self.get_y_position()
+
+        rect = surface.get_rect(midtop=(x_pos, y_pos))
+        
+        screen.blit(surface, rect)
+    
+    def get_height(self):
+        text_surface = text_font.render(self.text, True, (255,255,255), wraplength=int(get_section_distances()/1.2))
+        height = text_surface.get_height() + (box_margin * 2)
+
+        return height
+    
+    def get_y_position(self):
+        y_pos = 100
+
+        for i in self.category.tasks:
+            if i == self:
+                break
+            else:
+                y_pos += i.height
+                y_pos += box_padding
+        
+        return y_pos
+
+
+class Category:
+    def __init__(self, text, index):
+        self.text = text
+        self.index = index
+        self.tasks = []
+
+
+def create_task(task_text, category):
+    task = Task(task_text, category)
+    kanban_data[category].append(task)
+    category.tasks.append(task)
+
+
+def get_section_distances():
+    n_sections = len(kanban_data)
+    distance = screen_width // n_sections
+
+    return distance
+
 
 def draw_section_titles():
-    n_sections = len(kanban_data)
+    title_text_surfaces = [title_font.render(i.text, True, (255,255,255)) for i in list(kanban_data)]
     
-    text_surfaces = [title_font.render(i, True, (255,255,255)) for i in list(kanban_data)]
-    
-    text_distances = screen_width // (n_sections)
+    text_distances = get_section_distances()
 
     x_pos = 0
 
-    for surface in text_surfaces:
+    for surface in title_text_surfaces:
         x_pos += text_distances
-
-        text_width = surface.get_width()
 
         adjustment = text_distances // 2
 
@@ -29,13 +93,13 @@ def draw_section_titles():
 
         screen.blit(surface, text_rect)
     
-    return text_surfaces
+    return title_text_surfaces
 
 
 def draw_vertical_borders():
-    n_sections = len(kanban_data)
+    border_distances = get_section_distances()
 
-    border_distances = screen_width // n_sections
+    n_sections = len(kanban_data)
 
     x_pos = 0
 
@@ -44,24 +108,32 @@ def draw_vertical_borders():
 
         pg.draw.line(screen, (255,255,255), (x_pos,0), (x_pos,screen_height), big_border_width)
 
+
 def draw_horizontal_border(text_surfaces):
     max_height = max([i.get_height() for i in text_surfaces])
     
     pg.draw.line(screen, (255,255,255), (0,max_height), (screen_width,max_height), big_border_width)
 
 
-kanban_data = {'to do':[], 'in progess':[], 'done':[]}
+kanban_data = {Category(text='to do', index=1):[], Category(text='in progress', index=2):[], Category(text='done', index=3):[]}
+
+create_task('start it', list(kanban_data)[0])
+create_task('finish it so that i can sleep at night lmaoi', list(kanban_data)[0])
 
 running = True
 while running:
+    screen.fill((0,0,0))
     for event in pg.event.get():
         if event.type == pg.QUIT:
             pg.quit()
             quit()
     
-    text_surfaces = draw_section_titles()
+    title_text_surfaces = draw_section_titles()
     draw_vertical_borders()
-    draw_horizontal_border(text_surfaces)
+    draw_horizontal_border(title_text_surfaces)
+    for category in kanban_data:
+        for task in kanban_data[category]:
+            task.draw()
 
     clock.tick(60)
     pg.display.flip()
