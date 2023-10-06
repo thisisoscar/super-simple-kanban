@@ -11,12 +11,15 @@ big_border_width = 3
 small_border_width = 1
 box_margin = 15
 box_padding = 15
+selected = None
 
 class Task:
     def __init__(self, text, category):
         self.text = text
         self.category = category
         self.height = self.get_height()
+        self.rect = None
+        self.background_colour = (100,100,100)
     
     def draw(self):
         text_surface = text_font.render(self.text, True, (255,255,255), wraplength=int(get_section_distances()/1.2))
@@ -25,7 +28,7 @@ class Task:
         width = get_section_distances() // 1.2
         
         surface = pg.Surface((width, height))
-        surface.fill((100,100,100))
+        surface.fill(self.background_colour)
         surface.blit(text_surface, (box_margin,box_margin))
         
         x_pos = self.category.index * get_section_distances()
@@ -33,9 +36,9 @@ class Task:
 
         y_pos = self.get_y_position()
 
-        rect = surface.get_rect(midtop=(x_pos, y_pos))
+        self.rect = surface.get_rect(midtop=(x_pos, y_pos))
         
-        screen.blit(surface, rect)
+        screen.blit(surface, self.rect)
     
     def get_height(self):
         text_surface = text_font.render(self.text, True, (255,255,255), wraplength=int(get_section_distances()/1.2))
@@ -127,6 +130,28 @@ while running:
         if event.type == pg.QUIT:
             pg.quit()
             quit()
+        
+        if event.type == pg.MOUSEBUTTONDOWN:
+            for category in kanban_data:
+                for task in kanban_data[category]:
+                    if task.rect.collidepoint(event.pos):
+                        selected = task
+                        task.background_colour = (50,50,200)
+                        break
+        
+        if event.type == pg.MOUSEBUTTONUP and selected != None:
+            section_distances = get_section_distances()
+            index = 0
+            x_val = 0
+            while x_val < event.pos[0]:
+                x_val += section_distances
+                index += 1
+
+            category = list(kanban_data)[index-1]
+            selected.background_colour = (100,100,100)
+            selected.category.tasks.remove(selected)
+            category.tasks.append(selected)
+            selected.category = category
     
     title_text_surfaces = draw_section_titles()
     draw_vertical_borders()
