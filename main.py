@@ -5,8 +5,10 @@ screen = pg.display.set_mode((0,0), pg.FULLSCREEN)
 screen_width = screen.get_width()
 screen_height = screen.get_height()
 clock = pg.time.Clock()
-title_font = pg.font.SysFont('chalkduster', 40)
-text_font = pg.font.SysFont('chalkduster', 20)
+title_font_size = 40
+text_font_size = 20
+title_font = pg.font.SysFont('chalkduster', title_font_size)
+text_font = pg.font.SysFont('chalkduster', text_font_size)
 big_border_width = 3
 small_border_width = 1
 box_margin = 15
@@ -20,6 +22,7 @@ class Task:
         self.height = self.get_height()
         self.rect = None
         self.background_colour = (100,100,100)
+        self.editing = False
     
     def draw(self):
         text_surface = text_font.render(self.text, True, (255,255,255), wraplength=int(get_section_distances()/1.2))
@@ -37,6 +40,12 @@ class Task:
         y_pos = self.get_y_position()
 
         self.rect = surface.get_rect(midtop=(x_pos, y_pos))
+
+        if self.editing and int(pg.time.get_ticks() / 1000) % 2 == 0:
+            caret_x = surface.get_rect().right - text_font_size
+            caret_y = surface.get_rect().bottom - text_font_size
+
+            pg.draw.line(surface, (255,255,255), (caret_x,caret_y), (caret_x,caret_y-text_font_size))
         
         screen.blit(surface, self.rect)
     
@@ -64,6 +73,39 @@ class Category:
         self.text = text
         self.index = index
         self.tasks = []
+
+
+def find_task_text(text):
+    for category in kanban_data:
+        for task in kanban_data[category]:
+            if task.text == text:
+                return True
+    
+    return False
+
+
+def draw_add_symbol(position, x_pos, y_pos):
+    image = pg.image.load('images/add.png').convert_alpha()
+    image = pg.transform.scale(image, (50,50))
+    if position == 'midright':
+        image_rect = image.get_rect(midright=(x_pos, y_pos))
+    elif position == 'midbottom':
+        image_rect = image.get_rect(midbottom=(x_pos, y_pos))
+    screen.blit(image, image_rect)
+
+
+def get_category_from_mouse_position():
+    section_distances = get_section_distances()
+
+    index = 0
+    x_val = 0
+    while x_val < pg.mouse.get_pos()[0]:
+        x_val += section_distances
+        index += 1
+    
+    category = list(kanban_data)[index-1]
+    
+    return category
 
 
 def create_task(task_text, category):
@@ -118,10 +160,16 @@ def draw_horizontal_border(text_surfaces):
     pg.draw.line(screen, (255,255,255), (0,max_height), (screen_width,max_height), big_border_width)
 
 
-kanban_data = {Category(text='to do', index=1):[], Category(text='in progress', index=2):[], Category(text='done', index=3):[]}
+section_names = ['to do', 'in progress', 'done']
+'''new_name = ' '
+while new_name != '':
+    new_name = input('type category name or leave blank to finish: ')
+    section_names.append(new_name)'''
 
-create_task('start it', list(kanban_data)[0])
-create_task('finish it so that i can sleep at night lmaoi', list(kanban_data)[0])
+kanban_data = {}
+
+for index, name in enumerate(section_names):
+    kanban_data[Category(text=name, index=index+1)] = []
 
 running = True
 while running:
@@ -137,23 +185,30 @@ while running:
                     if task.rect.collidepoint(event.pos):
                         selected = task
                         task.background_colour = (50,50,200)
+                        selected.editing = not selected.editing
                         break
                     
         if event.type == pg.MOUSEBUTTONUP and selected != None:
-            section_distances = get_section_distances()
-            index = 0
-            x_val = 0
-            while x_val < event.pos[0]:
-                x_val += section_distances
-                index += 1
+            category = get_category_from_mouse_position()
 
-            category = list(kanban_data)[index-1]
             selected.background_colour = (100,100,100)
             selected.category.tasks.remove(selected)
             category.tasks.append(selected)
             selected.category = category
             selected = None
+        
+        if event.type == pg.KEYUP:
+            for category in kanban_data:
+                for task in kanban_data[category]:
+                    if task.editing:
+                        if event.key in (pg.K_a, pg.K_b, pg.K_c, pg.K_d, pg.K_e, pg.K_f, pg.K_g, pg.K_h, pg.K_i, pg.K_j, pg.K_k, pg.K_l, pg.K_m, pg.K_n, pg.K_o, pg.K_p, pg.K_q, pg.K_r, pg.K_s, pg.K_t, pg.K_u, pg.K_v, pg.K_w, pg.K_x, pg.K_y, pg.K_z, pg.K_SPACE):
+                            task.text += event.unicode
+                        elif event.key == pg.K_BACKSPACE:
+                            task.text = task.text[:-1]
+                        elif event.key == pg.K_RETURN:
+                            task.editing = False
     
+    # draw everything
     title_text_surfaces = draw_section_titles()
     draw_vertical_borders()
     draw_horizontal_border(title_text_surfaces)
@@ -161,20 +216,18 @@ while running:
         for task in kanban_data[category]:
             task.draw()
     
-    if pg.mouse.get_pos()[0] >= screen_width-50:
-        image = pg.image.load('images/add.png').convert_alpha()
-        image = pg.transform.scale(image, (50,50))
-        image_rect = image.get_rect(midright=(screen_width,screen_height/2))
-        screen.blit(image, image_rect)
-
-        if pg.mouse.get_pressed()[0] and list(kanban_data)[-1].text != '':
-            kanban_data[Category(text='', index=len(kanban_data)+1)] = []
-    
+    # add new task
     if pg.mouse.get_pos()[1] >= screen_height-50:
-        image = pg.image.load('images/add.png').convert_alpha()
-        image = pg.transform.scale(image, (50,50))
-        image_rect = image.get_rect(midbottom=(screen_width/2,screen_height))
-        screen.blit(image, image_rect)
+        category = get_category_from_mouse_position()
+            
+        x_pos = category.index * get_section_distances()
+        x_pos -= get_section_distances() // 2
+        
+        draw_add_symbol('midbottom', x_pos, screen_height)
+
+        if pg.mouse.get_pressed()[0] and find_task_text('') == False:
+            create_task('', category)
+            
 
     clock.tick(60)
     pg.display.flip()
